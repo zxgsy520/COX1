@@ -11,7 +11,7 @@ from Bio import SeqIO
 
 LOG = logging.getLogger(__name__)
 
-__version__ = "v1.0.0"
+__version__ = "v1.0.1"
 __author__ = ("Xingguo Zhang",)
 __email__ = "invicoun@foxmail.com"
 __all__ = []
@@ -25,11 +25,16 @@ def get_cox1(file):
         fh = open(file)
 
     fo = open("cox1.pep.fasta", "w")
-
+    fd = open("cox1.describe.tsv", "w")
+    fd.write("#protein_id\ttax_id\torganism\n")
     for record in SeqIO.parse(fh, "genbank"):
         organism = record.annotations["organism"]
-
+        taxonomy = record.annotations["taxonomy"]
+        taxon = ""
         for genes in record.features:
+            if genes.type == "source":
+                taxon = genes.qualifiers["db_xref"][0].split(":")[1]
+
             if genes.type != "CDS":
                 continue
 
@@ -54,11 +59,14 @@ def get_cox1(file):
                 ncid = ""
 
             seq = genes.extract(record.seq)
-            print(">%s|%s [%s]\n%s" % (ncid, gene_id.upper(), organism, seq))
-
+            print(">%s|%s [organism=%s] [taxon=%s]\n%s" % (ncid, gene_id.upper(), organism, taxon, seq))
+            fd.write("%s\t%s\t%s\t%s\n" % (ncid, taxon, organism, "\t".join(taxonomy)))
             if "translation" in gene_desc:
                 protein = str(gene_desc["translation"][0])
-                fo.write(">%s|%s [%s]\n%s\n" % (ncid, gene_id.upper(), organism, protein))
+                fo.write(">%s|%s [organism=%s] [taxon=%s]\n%s\n" % (ncid, gene_id.upper(), organism, taxon, protein))
+
+    fd.close()
+    fo.close()
 
     return 0
 
